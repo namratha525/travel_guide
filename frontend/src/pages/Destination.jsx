@@ -1,103 +1,242 @@
 import { useState, useEffect } from "react";
-import { Link, useParams } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import api from "../api/axios";
-import MapView from "../components/MapView";
+import axios from "axios";
+import "./Destination.css";
 
-const API_BASE = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000";
+function Destinations() {
 
-export default function Destination() {
-  const { id } = useParams();
-  const { t } = useTranslation();
-  const [destination, setDestination] = useState(null);
-  const [packages, setPackages] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [states, setStates] = useState([]);
+  const [places, setPlaces] = useState([]);
+
+  const [search, setSearch] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+
+  const [selectedState, setSelectedState] = useState(null);
+  const [selectedPlace, setSelectedPlace] = useState(null);
+
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // LOAD STATES
 
   useEffect(() => {
-    if (!id) return;
-    api.get(`/destinations/${id}`).then((res) => {
-      setDestination(res.data.destination);
-      setLoading(false);
-    });
-    api.get("/packages", { params: { destinationId: id } }).then((res) => {
-      setPackages(res.data.packages || []);
-    });
-  }, [id]);
 
-  if (loading || !destination) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-12 text-center text-slate-500">
-        {t("common.loading")}
-      </div>
+    axios
+      .get("http://localhost:5000/api/states")
+      .then((res) => setStates(res.data.states))
+      .catch((err) => console.log(err));
+
+  }, []);
+
+  // SEARCH API
+
+  const handleSearchChange = async (e) => {
+
+    const value = e.target.value;
+
+    setSearch(value);
+    setShowSuggestions(true);
+
+    if (value.length > 1) {
+
+      try {
+
+        const res = await axios.get(
+          `http://localhost:5000/api/search?q=${value}`
+        );
+
+        const results = [
+          ...res.data.states,
+          ...res.data.destinations,
+        ];
+
+        setSuggestions(results);
+
+      } catch (err) {
+        console.log(err);
+      }
+    }
+  };
+
+  // CLICK SUGGESTION
+
+  const handleSuggestionClick = async (item) => {
+
+    setShowSuggestions(false);
+    setSearch(item.name);
+
+    if (item.type === "state") {
+
+      setSelectedState(item);
+
+      const res = await axios.get(
+        `http://localhost:5000/api/destinations/${item._id}`
+      );
+
+      setPlaces(res.data);
+
+    } else {
+
+      setSelectedPlace(item);
+
+    }
+  };
+
+  // CLICK STATE CARD
+
+  const handleStateClick = async (state) => {
+
+    setSelectedState(state);
+    setSelectedPlace(null);
+
+    const res = await axios.get(
+      `http://localhost:5000/api/destinations/${state._id}`
     );
-  }
 
-  const image = destination.images?.[0];
-  const imageUrl = image?.startsWith("http") ? image : API_BASE + image;
+    setPlaces(res.data);
+  };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
-        <div className="aspect-[21/9] bg-slate-200">
-          <img
-            src={imageUrl || "https://images.unsplash.com/photo-1524499940831-2a253ecb92eb?w=1200"}
-            alt={destination.name}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              e.target.src = "https://images.unsplash.com/photo-1524499940831-2a253ecb92eb?w=1200";
-            }}
-          />
-        </div>
-        <div className="p-8">
-          <h1 className="text-3xl font-bold text-navy mb-2">{destination.name}</h1>
-          {destination.stateId?.name && (
-            <p className="text-slate-500 mb-4">{destination.stateId.name}</p>
-          )}
-          {destination.rating > 0 && (
-            <span className="inline-block text-amber-500">★ {destination.rating}</span>
-          )}
-          {destination.description && (
-            <div className="mt-6 prose max-w-none">
-              <h2 className="text-xl font-semibold text-navy">{t("destination.description")}</h2>
-              <p className="text-slate-600 mt-2">{destination.description}</p>
-            </div>
-          )}
-        </div>
-      </div>
 
-      {destination.coordinates?.lat != null && (
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold text-navy mb-4">{t("destination.map")}</h2>
-          <MapView destinations={[destination]} />
-        </div>
-      )}
+    <div className="destinations-page">
 
-      <h2 className="text-2xl font-bold text-navy mb-4">{t("destination.packages")}</h2>
-      <div className="grid gap-4">
-        {packages.map((pkg) => (
-          <div
-            key={pkg._id}
-            className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 bg-white rounded-xl shadow border border-slate-100"
-          >
-            <div>
-              <h3 className="font-semibold text-lg text-navy">{pkg.title}</h3>
-              <p className="text-slate-600 text-sm line-clamp-2">{pkg.description}</p>
-              <p className="text-slate-500 text-sm mt-1">
-                {t("destination.duration")}: {pkg.duration} • {t("destination.from")} ₹{pkg.price?.toLocaleString()}
-              </p>
-            </div>
-            <Link
-              to={`/booking/${destination._id}?packageId=${pkg._id}`}
-              className="shrink-0 px-6 py-3 rounded-lg bg-saffron text-white font-medium hover:bg-amber-600 text-center"
-            >
-              {t("destination.bookNow")}
-            </Link>
+      <h1 className="title">Explore India</h1>
+
+      {/* SEARCH BAR */}
+
+      <div className="search-container">
+
+        <input
+          type="text"
+          placeholder="Search state or tourist place..."
+          value={search}
+          onChange={handleSearchChange}
+        />
+
+        {showSuggestions && search && (
+
+          <div className="suggestions">
+
+            {suggestions.map((item) => (
+
+              <div
+                key={item._id}
+                className="suggestion-item"
+                onClick={() => handleSuggestionClick(item)}
+              >
+
+                {item.name}
+
+              </div>
+
+            ))}
+
           </div>
-        ))}
+
+        )}
+
       </div>
-      {packages.length === 0 && (
-        <p className="text-slate-500 py-8">{t("explore.noDestinations")}</p>
+
+      {/* STATES GRID */}
+        <h2>States</h2>
+
+      {!selectedState && (
+        <div className="states-grid">
+          
+
+          {states.map((state) => (
+
+            <div
+              key={state._id}
+              className="state-card"
+              onClick={() => handleStateClick(state)}
+            >
+
+              <img src={state.image} alt={state.name} />
+
+              <h3>{state.name}</h3>
+
+            </div>
+
+          ))}
+
+        </div>
+
       )}
+
+      {/* PLACES GRID */}
+
+      {selectedState && (
+
+        <div className="places-section">
+
+          <h2>{selectedState.name} Destinations</h2>
+
+          <button
+            className="back-btn"
+            onClick={() => {
+              setSelectedState(null);
+              setPlaces([]);
+              setSelectedPlace(null);
+            }}
+          >
+            ← Back to States
+          </button>
+
+          <div className="places-grid">
+
+            {places.map((place) => (
+
+              <div
+                key={place._id}
+                className="place-card"
+                onClick={() => setSelectedPlace(place)}
+              >
+
+                <h3>{place.name}</h3>
+
+                <p>{place.description}</p>
+
+              </div>
+
+            ))}
+
+          </div>
+
+        </div>
+
+      )}
+
+      {/* PREVIEW PANEL */}
+
+      {selectedPlace && (
+
+        <div className="preview-panel">
+
+          <div className="preview-content">
+
+            <h2>{selectedPlace.name}</h2>
+
+            <p>{selectedPlace.description}</p>
+
+            <button className="view-btn">
+              View Details
+            </button>
+
+            <button
+              className="close-btn"
+              onClick={() => setSelectedPlace(null)}
+            >
+              Close
+            </button>
+
+          </div>
+
+        </div>
+
+      )}
+
     </div>
+
   );
 }
+
+export default Destinations;

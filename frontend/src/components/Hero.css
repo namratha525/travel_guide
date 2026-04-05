@@ -1,0 +1,23 @@
+.hero {
+  height: 90vh;
+  background: url("https://images.unsplash.com/photo-1564507592333-c60657eea523") center/cover no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-overlay {
+  text-align: center;
+  color: white;
+  background: rgba(0,0,0,0.4);
+  padding: 40px;
+  border-radius: 10px;
+}
+
+.search-box {
+  margin-top: 15px;
+  padding: 10px;
+  width: 250px;
+  border-radius: 20px;
+  border: none;
+}

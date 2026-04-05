@@ -1,0 +1,11 @@
+.why {
+  padding: 40px;
+  background: #eee;
+  text-align: center;
+}
+
+.why-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}

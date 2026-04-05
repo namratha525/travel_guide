@@ -1,0 +1,133 @@
+.destinations-page{
+  padding-top:90px;
+  padding-left:40px;
+  padding-right:40px;
+  background:#f6f9fc;
+  min-height:100vh;
+}
+
+.title{
+  text-align:center;
+  font-size:36px;
+  margin-bottom:30px;
+  color:#2c3e50;
+}
+
+/* SEARCH */
+
+.search-container{
+  width:400px;
+  margin:auto;
+  position:relative;
+}
+
+.search-container input{
+  width:100%;
+  padding:12px 15px;
+  border-radius:25px;
+  border:1px solid #ccc;
+  font-size:16px;
+}
+
+.suggestions{
+  position:absolute;
+  background:white;
+  width:100%;
+  border-radius:10px;
+  box-shadow:0 4px 10px rgba(0,0,0,0.1);
+  margin-top:5px;
+}
+
+.suggestion-item{
+  padding:10px;
+  cursor:pointer;
+}
+
+.suggestion-item:hover{
+  background:#f0f0f0;
+}
+
+/* STATES */
+
+.states-grid{
+  margin-top:40px;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+  gap:25px;
+}
+
+.state-card{
+  background:white;
+  border-radius:10px;
+  overflow:hidden;
+  cursor:pointer;
+  box-shadow:0 4px 10px rgba(0,0,0,0.1);
+  transition:0.3s;
+}
+
+.state-card:hover{
+  transform:translateY(-5px);
+}
+
+.state-card img{
+  width:100%;
+  height:170px;
+  object-fit:cover;
+}
+
+.state-card h3{
+  text-align:center;
+  padding:15px;
+}
+
+/* PLACES */
+
+.places-grid{
+  margin-top:30px;
+}
+
+.place-card{
+  background:white;
+  padding:20px;
+  border-radius:10px;
+  margin-bottom:15px;
+  cursor:pointer;
+  box-shadow:0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* PREVIEW PANEL */
+
+.preview-panel{
+  position:fixed;
+  bottom:0;
+  left:0;
+  width:100%;
+  height:50%;
+  background:white;
+  box-shadow:0 -4px 15px rgba(0,0,0,0.2);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+
+.preview-content{
+  text-align:center;
+}
+
+.view-btn{
+  padding:10px 20px;
+  background:#00a8e8;
+  border:none;
+  color:white;
+  border-radius:5px;
+  margin:10px;
+  cursor:pointer;
+}
+
+.close-btn{
+  padding:10px 20px;
+  border:none;
+  background:#ccc;
+  border-radius:5px;
+  cursor:pointer;
+}

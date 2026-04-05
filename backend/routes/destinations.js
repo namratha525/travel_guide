@@ -1,23 +1,20 @@
 import express from "express";
-import { auth, optionalAuth } from "../middleware/auth.js";
-import { admin } from "../middleware/admin.js";
-import { language } from "../middleware/language.js";
-import { upload } from "../middleware/upload.js";
-import * as ctrl from "../controllers/destinationController.js";
+
+import {
+  getStates,
+  getDestinationsByState,
+  searchPlaces,
+  getDestination
+} from "../controllers/destinationController.js";
 
 const router = express.Router();
-router.use(language);
 
-router.get("/", optionalAuth, ctrl.list);
-router.get("/region/:regionId", ctrl.listByRegion);
-router.get("/:id", optionalAuth, ctrl.getOne);
-router.post("/", auth, admin, ctrl.create);
-router.post("/:id/images", auth, admin, upload.array("images", 10), (req, res, next) => {
-  if (!req.files?.length) return next(new Error("No files"));
-  req.body = { images: req.files.map((f) => `/uploads/${f.filename}`) };
-  ctrl.addImages(req, res, next);
-});
-router.put("/:id", auth, admin, ctrl.update);
-router.delete("/:id", auth, admin, ctrl.remove);
+router.get("/states", getStates);
+
+router.get("/destinations/:stateId", getDestinationsByState);
+
+router.get("/search", searchPlaces);
+
+router.get("/destination/:id", getDestination);
 
 export default router;

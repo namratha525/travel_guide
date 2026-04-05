@@ -1,0 +1,12 @@
+.map {
+  padding: 40px;
+  text-align: center;
+}
+
+.map button {
+  padding: 10px 20px;
+  background: blue;
+  color: white;
+  border: none;
+  border-radius: 20px;
+}

@@ -1,15 +1,14 @@
 import mongoose from "mongoose";
 
-const regionSchema = new mongoose.Schema(
-  {
-    name: {
-      type: mongoose.Schema.Types.Mixed,
-      required: true,
-      default: {},
-    },
-    icon: { type: String, default: "" },
+const regionSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true
   },
-  { timestamps: true }
-);
+
+  image: {
+    type: String
+  }
+});
 
 export default mongoose.model("Region", regionSchema);
