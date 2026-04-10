@@ -16,6 +16,12 @@ import Packages from "./pages/Packages";
 import PackageDetails from "./pages/PackageDetails";
 import "leaflet/dist/leaflet.css";
 import Map from "./pages/Map";
+import TransportSearch from "./pages/TransportSearch";
+import DestinationDetail from "./pages/DestinationDetail";
+import DestinationBooking from "./pages/DestinationBooking";
+
+// inside <Routes>:
+
 
 
 
@@ -39,6 +45,9 @@ export default function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/packages" element={<Packages />} />
             <Route path="/packages/:id" element={<PackageDetails />} />
+            <Route path="/transport-search" element={<TransportSearch />} />
+            <Route path="/destination-detail/:id" element={<DestinationDetail />} />
+            <Route path="/destination-booking/:id" element={<DestinationBooking />} />
 
             <Route
               path="dashboard/*"

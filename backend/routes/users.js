@@ -38,11 +38,16 @@ router.put("/profile", auth, async (req, res) => {
     "preferredLanguage"
   ];
 
-  allowedFields.forEach(field => {
+// ✅ Guard against null user
+if (!user) {
+    return res.status(404).json({ message: "User not found" });
+}
+
+allowedFields.forEach(field => {
     if (req.body[field] !== undefined) {
-      user[field] = req.body[field];
+        user[field] = req.body[field];
     }
-  });
+});
 
   await user.save();
 

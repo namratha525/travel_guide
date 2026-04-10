@@ -1,23 +1,95 @@
 import express from "express";
-import { auth, optionalAuth } from "../middleware/auth.js";
-import { admin } from "../middleware/admin.js";
-import { language } from "../middleware/language.js";
-import { upload } from "../middleware/upload.js";
-import * as ctrl from "../controllers/destinationController.js";
+import Destination from "../models/Destination.js";
+
+import {
+  getStates,
+  getDestinationsByState,
+  searchPlaces,
+  getDestination
+} from "../controllers/destinationController.js";
 
 const router = express.Router();
-router.use(language);
+// ADD THIS ROUTE to your existing backend/routes/destinations.js
+// This adds GET /api/destinations/detail/:id
 
-router.get("/", optionalAuth, ctrl.list);
-router.get("/region/:regionId", ctrl.listByRegion);
-router.get("/:id", optionalAuth, ctrl.getOne);
-router.post("/", auth, admin, ctrl.create);
-router.post("/:id/images", auth, admin, upload.array("images", 10), (req, res, next) => {
-  if (!req.files?.length) return next(new Error("No files"));
-  req.body = { images: req.files.map((f) => `/uploads/${f.filename}`) };
-  ctrl.addImages(req, res, next);
+// ─────────────────────────────────────────────────────────────────────────────
+// Place this BEFORE your existing routes to avoid conflicts with other :id routes
+// ─────────────────────────────────────────────────────────────────────────────
+
+ router.get("/detail/:id", async (req, res) => {
+  try {
+    // First try with populate
+    let destination = await Destination.findById(req.params.id).lean();
+
+    if (!destination) {
+      return res.status(404).json({ message: "Destination not found" });
+    }
+
+    // If state is an ObjectId, populate it manually
+    if (destination.state && typeof destination.state === "object" && destination.state._id) {
+      // already populated somehow
+    } else if (destination.state) {
+      // Try to get state name from State model
+      try {
+        const State = (await import("../models/State.js")).default;
+        const stateDoc = await State.findById(destination.state).lean();
+        if (stateDoc) {
+          destination.state  = stateDoc.name;
+          destination.region = stateDoc.region || "";
+        }
+      } catch (_) {}
+    }
+
+    res.json(destination);
+  } catch (err) {
+    console.error("Detail route error:", err); // ← will show exact error in terminal
+    res.status(500).json({ message: err.message });
+  }
 });
-router.put("/:id", auth, admin, ctrl.update);
-router.delete("/:id", auth, admin, ctrl.remove);
+// router.get("/detail/:id", async (req, res) => {
+//   try {
+//     const destination = await Destination.findById(req.params.id)
+//       .populate("state", "name region")
+//       .lean();
+
+//     if (!destination) {
+//       return res.status(404).json({ message: "Destination not found" });
+//     }
+
+    // Flatten state/region info for easy frontend consumption
+//     const result = {
+//       ...destination,
+//       state:  destination.state?.name  || destination.state  || "",
+//       region: destination.state?.region || "",
+//     };
+
+//     res.json(result);
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NOTE: If your Destination model doesn't have a `state` ref, use this simpler version:
+// ─────────────────────────────────────────────────────────────────────────────
+/*
+router.get("/detail/:id", async (req, res) => {
+  try {
+    const destination = await Destination.findById(req.params.id).lean();
+    if (!destination) return res.status(404).json({ message: "Destination not found" });
+    res.json(destination);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+*/
+
+router.get("/states", getStates);
+
+router.get("/destinations/:stateId", getDestinationsByState);
+
+router.get("/search", searchPlaces);
+
+router.get("/destination/:id", getDestination);
 
 export default router;

@@ -14,6 +14,8 @@ import packageRoutes from "./routes/packages.js";
 import bookingRoutes from "./routes/bookings.js";
 import newsletterRoutes from "./routes/newsletter.js";
 import paymentRoutes from "./routes/payments.js";
+import adminRoutes from "./routes/admin.js";
+import flightRoutes from "./routes/flights.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -25,18 +27,29 @@ const allowedOrigins = [
 ].filter(Boolean);
 
 console.log("Allowed origins:", allowedOrigins);
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-  })
-);
-app.options("*", cors({
-  origin: allowedOrigins,
-  credentials: true,
-}));
-app.use(cookieParser());
+// app.use(
+//   cors({
+//     origin: [
+//   "http://localhost:5173",
+//   "http://localhost:5174" ],
+//     credentials: true,
+//   })
+// );
 app.use(express.json());
+// app.use(cors({
+//   origin: function (origin, callback) {
+//     console.log("Request Origin:", origin); // 👈 ADD THIS
+//     callback(null, true);
+//   },
+//   credentials: true
+// }));
+// app.options("*", cors());
+app.use(cors({
+    origin: "*",
+    credentials: true
+  }))
+app.use(cookieParser());
+
 app.use("/uploads", express.static("uploads"));
 
 app.use("/api/auth", authRoutes);
@@ -49,7 +62,8 @@ app.use("/api/bookings", bookingRoutes);
 app.use("/api/newsletter", newsletterRoutes);
 app.use("/uploads", express.static("uploads"));
 app.use("/api/payment", paymentRoutes);
-
+app.use("/api/admin", adminRoutes);
+app.use("/api/flights", flightRoutes);
 app.use(errorHandler);
 
 mongoose

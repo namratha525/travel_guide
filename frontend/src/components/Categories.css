@@ -1,0 +1,17 @@
+.categories {
+  padding: 40px;
+  text-align: center;
+}
+
+.cat-list {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+.cat-item {
+  padding: 10px 20px;
+  background: lightblue;
+  border-radius: 20px;
+  cursor: pointer;
+}

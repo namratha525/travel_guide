@@ -1,15 +1,38 @@
-import mongoose from "mongoose";
+// import mongoose from "mongoose";
 
-const destinationSchema = new mongoose.Schema({
-  id: { type: Number, required: true, unique: true },   // ⭐ important
-  name: String,
-  description: String,
-  location: String,
-  image: String,
-  region: String,
-  category: String,
-  rating: Number,
-  bestTime: String
-});
+// const destinationSchema = new mongoose.Schema({
+//   name: {
+//     type: String,
+//     required: true
+//   },
+
+//   description: {
+//     type: String
+//   },
+
+//   image: {
+//     type: String
+//   },
+
+//   stateId: {
+//     type: mongoose.Schema.Types.ObjectId,
+//     ref: "State",
+//     required: true
+//   }
+// });
+
+// export default mongoose.model("Destination", destinationSchema);
+// backend/models/Destination.js
+import mongoose from "mongoose";
+const destinationSchema = new mongoose.Schema(
+  {
+    name:            { type: String, required: true },
+    description:     { type: String, required: true },
+    image:           { type: String, required: true },
+    bestTimeToVisit: { type: String, required: true },  // ← added
+    stateId:           { type: mongoose.Schema.Types.ObjectId, ref: "State", required: true },
+  },
+  { timestamps: true }
+);
 
 export default mongoose.model("Destination", destinationSchema);
