@@ -56,7 +56,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/regions", regionRoutes);
 app.use("/api/states", stateRoutes);
-app.use("/api", destinationRoutes);
+app.use("/api/destinations", destinationRoutes);
 app.use("/api/packages", packageRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/newsletter", newsletterRoutes);

@@ -1,293 +1,316 @@
+// frontend/src/pages/TransportSearch.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { searchTransport, searchAirports } from "../api/transportApi";
 import "./TransportSearch.css";
 
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+const TABS = [
+  { key: "flight", label: "Flights",  icon: "✈️" },
+  { key: "train",  label: "Trains",   icon: "🚆" },
+  { key: "bus",    label: "Buses",    icon: "🚌" },
+  { key: "ferry",  label: "Ferry",    icon: "⛴️" },
+];
+
 export default function TransportSearch() {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const navigate      = useNavigate();
+  const [params]      = useSearchParams();
 
-  const destination  = searchParams.get("destination") || "";
-  const packageId    = searchParams.get("packageId")   || "";
-  const packageTitle = searchParams.get("packageTitle")|| "";
+  // From packages flow: packageId, packageTitle
+  const packageId     = params.get("packageId");
+  const packageTitle  = params.get("packageTitle");
 
-  const [origin,      setOrigin]      = useState("");
-  const [date,        setDate]        = useState("");
-  const [results,     setResults]     = useState(null);
-  const [loading,     setLoading]     = useState(false);
-  const [error,       setError]       = useState("");
-  const [activeTab,   setActiveTab]   = useState("flight");
-  const [suggestions, setSuggestions] = useState([]);
-  const [showSug,     setShowSug]     = useState(false);
-  const sugRef = useRef(null);
+  // From destination booking flow: destBookingId, destName
+  const destBookingId = params.get("destBookingId");
+  const destName      = params.get("destName");
 
-  // Close suggestions on outside click
-  useEffect(() => {
-    function handler(e) {
-      if (sugRef.current && !sugRef.current.contains(e.target)) setShowSug(false);
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+  const destination   = params.get("destination") || destName || "";
 
-  // Fetch airport suggestions
+  const [origin,       setOrigin]       = useState("");
+  const [suggestions,  setSuggestions]  = useState([]);
+  const [showSugg,     setShowSugg]     = useState(false);
+  const [date,         setDate]         = useState(new Date().toISOString().split("T")[0]);
+  const [results,      setResults]      = useState(null);
+  const [loading,      setLoading]      = useState(false);
+  const [error,        setError]        = useState(null);
+  const [activeTab,    setActiveTab]    = useState("flight");
+  const inputRef = useRef(null);
+
+  // ── Autocomplete ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (origin.length < 2) { setSuggestions([]); return; }
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       try {
-        const data = await searchAirports(origin);
+        const res = await fetch(`${API_BASE}/flights/airports?q=${encodeURIComponent(origin)}`);
+        const data = await res.json();
         setSuggestions(data);
-        setShowSug(true);
+        setShowSugg(true);
       } catch { setSuggestions([]); }
-    }, 300);
-    return () => clearTimeout(t);
+    }, 250);
+    return () => clearTimeout(timer);
   }, [origin]);
 
-  async function handleSearch(e) {
-    e.preventDefault();
-    if (!origin.trim()) { setError("Please enter your boarding city."); return; }
-    setError("");
+  // ── Search ──────────────────────────────────────────────────────────────────
+  async function handleSearch() {
+    if (!origin.trim()) { alert("Please enter your boarding city."); return; }
     setLoading(true);
+    setError(null);
     setResults(null);
     try {
-      const data = await searchTransport(origin, destination, date);
+      const res = await fetch(
+        `${API_BASE}/flights/search?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&date=${date}`
+      );
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Search failed");
+      }
+      const data = await res.json();
       setResults(data);
-      setActiveTab(data.flights.length > 0 ? "flight" : "train");
-    } catch (err) {
-      setError(err.message || "Search failed. Please try again.");
+      // Auto-switch to first tab that has results
+      if (data.flights?.length)       setActiveTab("flight");
+      else if (data.trains?.length)   setActiveTab("train");
+      else if (data.buses?.length)    setActiveTab("bus");
+      else if (data.ferries?.length)  setActiveTab("ferry");
+    } catch (e) {
+      setError(e.message);
     } finally {
       setLoading(false);
     }
   }
 
+  // ── Select transport & go back ──────────────────────────────────────────────
   function handleSelect(item) {
-    navigate(`/booking/${packageId}`, {
-      state: {
-        selectedTransport: {
-          type:     item.type,
-          provider: item.type === "flight" ? item.airline : item.trainName,
-          number:   item.type === "flight" ? item.flightNumber : item.trainNumber,
-          class:    item.class || "Economy",
-          dep:      item.departure,
-          arr:      item.arrival,
-          dur:      item.duration,
-          price:    item.price,
-        },
-      },
-    });
+    // Normalize the selected transport object
+    const transport = {
+      type:     item.type,
+      price:    item.price,
+      dep:      item.departure,
+      arr:      item.arrival,
+      dur:      item.duration,
+      class:    item.class,
+      provider: item.airline || item.trainName || item.busOperator || item.ferryOperator || "",
+      number:   item.flightNumber || item.trainNumber || "",
+    };
+
+    if (destBookingId) {
+      // Return to DestinationBooking
+      navigate(`/destination-booking/${destBookingId}`, {
+        state: { selectedTransport: transport },
+      });
+    } else if (packageId) {
+      // Return to Package Booking
+      navigate(`/booking/${packageId}`, {
+        state: { selectedTransport: transport },
+      });
+    } else {
+      navigate(-1);
+    }
   }
 
-  const today = new Date().toISOString().split("T")[0];
-  const flights = results?.flights || [];
-  const trains  = results?.trains  || [];
+  // ── Tab data ────────────────────────────────────────────────────────────────
+  function getTabItems() {
+    if (!results) return [];
+    switch (activeTab) {
+      case "flight": return results.flights  || [];
+      case "train":  return results.trains   || [];
+      case "bus":    return results.buses    || [];
+      case "ferry":  return results.ferries  || [];
+      default:       return [];
+    }
+  }
+
+  function getTabCount(key) {
+    if (!results) return 0;
+    switch (key) {
+      case "flight": return results.flights?.length  || 0;
+      case "train":  return results.trains?.length   || 0;
+      case "bus":    return results.buses?.length    || 0;
+      case "ferry":  return results.ferries?.length  || 0;
+      default:       return 0;
+    }
+  }
+
+  const items = getTabItems();
 
   return (
     <div className="ts-page">
-      {/* ── Hero ── */}
-      <div className="ts-hero">
-        <div className="ts-hero__inner">
-          <p className="ts-hero__eyebrow">
-            {packageTitle ? `✈️ Transport for: ${packageTitle}` : "Search Transport"}
-          </p>
-          <h1 className="ts-hero__title">
-            Where are you<br />flying from?
+      {/* Header */}
+      <div className="ts-header">
+        <button className="ts-back-btn" onClick={() => navigate(-1)}>← Back</button>
+        <div className="ts-header__text">
+          <p className="ts-header__label">Transport Search</p>
+          <h1 className="ts-header__title">
+            How are you reaching <span>{destination}</span>?
           </h1>
-          <p className="ts-hero__dest">
-            Destination: <strong>{destination || "—"}</strong>
-          </p>
+          {(packageTitle || destName) && (
+            <p className="ts-header__sub">
+              For: {packageTitle || destName}
+            </p>
+          )}
         </div>
       </div>
 
-      {/* ── Search form ── */}
-      <div className="ts-form-wrap">
-        <form className="ts-form" onSubmit={handleSearch}>
-          {/* Origin */}
-          <div className="ts-form__group" ref={sugRef}>
-            <label className="ts-form__label">Boarding City / Airport</label>
-            <div className="ts-form__input-wrap">
-              <span className="ts-form__icon">🛫</span>
-              <input
-                className="ts-form__input"
-                type="text"
-                placeholder="e.g. Delhi, Mumbai, Kolkata..."
-                value={origin}
-                onChange={(e) => setOrigin(e.target.value)}
-                onFocus={() => suggestions.length && setShowSug(true)}
-                autoComplete="off"
-              />
-            </div>
-            {showSug && suggestions.length > 0 && (
-              <ul className="ts-suggestions">
+      {/* Search bar */}
+      <div className="ts-search-bar">
+        <div className="ts-search-row">
+          <div className="ts-field ts-field--origin" ref={inputRef}>
+            <label className="ts-label">From</label>
+            <input
+              className="ts-form__input"
+              placeholder="Enter boarding city (e.g. Delhi, Mumbai)"
+              value={origin}
+              onChange={(e) => { setOrigin(e.target.value); setShowSugg(true); }}
+              onBlur={() => setTimeout(() => setShowSugg(false), 180)}
+            />
+            {showSugg && suggestions.length > 0 && (
+              <div className="ts-suggestions">
                 {suggestions.map((s) => (
-                  <li
+                  <div
                     key={s.code}
                     className="ts-suggestions__item"
-                    onMouseDown={() => { setOrigin(s.city); setShowSug(false); }}
+                    onMouseDown={() => { setOrigin(s.city); setShowSugg(false); }}
                   >
                     <span className="ts-suggestions__code">{s.code}</span>
-                    <span className="ts-suggestions__name">{s.city} — {s.name}</span>
-                  </li>
+                    <span className="ts-suggestions__city">{s.city}</span>
+                    <span className="ts-suggestions__name">{s.name}</span>
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
           </div>
 
-          {/* Destination (read-only) */}
-          <div className="ts-form__group">
-            <label className="ts-form__label">Destination</label>
-            <div className="ts-form__input-wrap">
-              <span className="ts-form__icon">🛬</span>
-              <input
-                className="ts-form__input ts-form__input--readonly"
-                type="text"
-                value={destination}
-                readOnly
-              />
-            </div>
+          <div className="ts-field ts-field--dest">
+            <label className="ts-label">To</label>
+            <input
+              className="ts-form__input ts-form__input--readonly"
+              value={destination}
+              readOnly
+            />
           </div>
 
-          {/* Date */}
-          <div className="ts-form__group">
-            <label className="ts-form__label">Travel Date</label>
-            <div className="ts-form__input-wrap">
-              <span className="ts-form__icon">📅</span>
-              <input
-                className="ts-form__input"
-                type="date"
-                value={date}
-                min={today}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
+          <div className="ts-field ts-field--date">
+            <label className="ts-label">Date</label>
+            <input
+              type="date"
+              className="ts-form__input"
+              value={date}
+              min={new Date().toISOString().split("T")[0]}
+              onChange={(e) => setDate(e.target.value)}
+            />
           </div>
 
-          <button className="ts-form__btn" type="submit" disabled={loading}>
-            {loading ? <span className="ts-spinner" /> : "Search Flights & Trains"}
+          <button className="ts-form__btn" onClick={handleSearch} disabled={loading}>
+            {loading ? <span className="ts-btn-spinner" /> : "Search"}
           </button>
-        </form>
-
-        {error && <p className="ts-error">{error}</p>}
+        </div>
       </div>
 
-      {/* ── Results ── */}
+      {/* Error */}
+      {error && (
+        <div className="ts-error">
+          <p>⚠️ {error}</p>
+          <p className="ts-error__hint">Try major cities like Delhi, Mumbai, Chennai, Kolkata, Bangalore</p>
+        </div>
+      )}
+
+      {/* Results */}
       {results && (
         <div className="ts-results">
-          <div className="ts-results__header">
-            <span className="ts-results__route">
-              {results.origin.city} → {results.destination.city}
-            </span>
-            <span className="ts-results__date">{results.date}</span>
-          </div>
-
           {/* Tabs */}
           <div className="ts-tabs">
-            <button
-              className={`ts-tab${activeTab === "flight" ? " active" : ""}`}
-              onClick={() => setActiveTab("flight")}
-            >
-              ✈️ Flights <span className="ts-tab__count">{flights.length}</span>
-            </button>
-            <button
-              className={`ts-tab${activeTab === "train" ? " active" : ""}`}
-              onClick={() => setActiveTab("train")}
-            >
-              🚆 Trains <span className="ts-tab__count">{trains.length}</span>
-            </button>
+            {TABS.map((tab) => {
+              const count = getTabCount(tab.key);
+              return (
+                <button
+                  key={tab.key}
+                  className={`ts-tab${activeTab === tab.key ? " active" : ""}${count === 0 ? " disabled" : ""}`}
+                  onClick={() => count > 0 && setActiveTab(tab.key)}
+                >
+                  <span className="ts-tab__icon">{tab.icon}</span>
+                  <span className="ts-tab__label">{tab.label}</span>
+                  {count > 0 && <span className="ts-tab__count">{count}</span>}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Flight cards */}
-          {activeTab === "flight" && (
-            <div className="ts-cards">
-              {flights.length === 0 ? (
-                <p className="ts-empty">No flights found for this route.</p>
-              ) : (
-                flights.map((f) => (
-                  <div className="ts-card" key={f.id}>
-                    <div className="ts-card__left">
-                      <p className="ts-card__airline">{f.airline}</p>
-                      <p className="ts-card__num">{f.flightNumber}</p>
-                    </div>
-                    <div className="ts-card__times">
-                      <div className="ts-card__time-block">
-                        <span className="ts-card__time">{f.departure}</span>
-                        <span className="ts-card__city">{f.originCity}</span>
-                      </div>
-                      <div className="ts-card__mid">
-                        <span className="ts-card__dur">{f.duration}</span>
-                        <div className="ts-card__line">
-                          <span className="ts-card__dot" />
-                          <span className="ts-card__track" />
-                          <span className="ts-card__dot" />
-                        </div>
-                        <span className="ts-card__stops">
-                          {f.stops === 0 ? "Non-stop" : `${f.stops} stop`}
-                        </span>
-                      </div>
-                      <div className="ts-card__time-block ts-card__time-block--right">
-                        <span className="ts-card__time">{f.arrival}</span>
-                        <span className="ts-card__city">{f.destinationCity}</span>
-                      </div>
-                    </div>
-                    <div className="ts-card__right">
-                      <p className="ts-card__price">₹{f.price.toLocaleString("en-IN")}</p>
-                      <p className="ts-card__seats">{f.seatsLeft} seats left</p>
-                      <p className="ts-card__bag">{f.baggage}</p>
-                      <button className="ts-card__btn" onClick={() => handleSelect(f)}>
-                        Select
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
+          {/* Route info */}
+          <div className="ts-route-info">
+            <span className="ts-route-info__from">{results.origin?.city || origin}</span>
+            <span className="ts-route-info__arrow">→</span>
+            <span className="ts-route-info__to">{results.destination?.city || destination}</span>
+            <span className="ts-route-info__date">{new Date(date).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}</span>
+          </div>
 
-          {/* Train cards */}
-          {activeTab === "train" && (
+          {/* Cards */}
+          {items.length === 0 ? (
+            <div className="ts-empty">
+              <p>No {activeTab} options available for this route.</p>
+              <p className="ts-empty__hint">Try a different tab or search route.</p>
+            </div>
+          ) : (
             <div className="ts-cards">
-              {trains.length === 0 ? (
-                <p className="ts-empty">No trains found for this route. Try flights instead.</p>
-              ) : (
-                trains.map((t) => (
-                  <div className="ts-card" key={t.id}>
-                    <div className="ts-card__left">
-                      <p className="ts-card__airline">{t.trainName}</p>
-                      <p className="ts-card__num">#{t.trainNumber}</p>
-                    </div>
-                    <div className="ts-card__times">
-                      <div className="ts-card__time-block">
-                        <span className="ts-card__time">{t.departure}</span>
-                        <span className="ts-card__city">{t.originCity}</span>
-                      </div>
-                      <div className="ts-card__mid">
-                        <span className="ts-card__dur">{t.duration}</span>
-                        <div className="ts-card__line">
-                          <span className="ts-card__dot" />
-                          <span className="ts-card__track" />
-                          <span className="ts-card__dot" />
-                        </div>
-                        <span className="ts-card__stops">Indian Railways</span>
-                      </div>
-                      <div className="ts-card__time-block ts-card__time-block--right">
-                        <span className="ts-card__time">{t.arrival}</span>
-                        <span className="ts-card__city">{t.destinationCity}</span>
-                      </div>
-                    </div>
-                    <div className="ts-card__right">
-                      <p className="ts-card__class">{t.class}</p>
-                      <p className="ts-card__price">₹{t.price.toLocaleString("en-IN")}</p>
-                      <p className="ts-card__seats">{t.seatsLeft} seats</p>
-                      <button className="ts-card__btn" onClick={() => handleSelect(t)}>
-                        Select
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
+              {items.map((item) => (
+                <TransportCard key={item.id} item={item} onSelect={handleSelect} />
+              ))}
             </div>
           )}
         </div>
       )}
+
+      {/* Empty state */}
+      {!results && !loading && !error && (
+        <div className="ts-idle">
+          <div className="ts-idle__icons">✈️ 🚆 🚌 ⛴️</div>
+          <p>Enter your boarding city and search to see all transport options</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Transport card ─────────────────────────────────────────────────────────────
+function TransportCard({ item, onSelect }) {
+  const icons = { flight: "✈️", train: "🚆", bus: "🚌", ferry: "⛴️" };
+
+  const providerName =
+    item.airline || item.trainName || item.busOperator || item.ferryOperator || "Transport";
+  const providerSub  =
+    item.flightNumber || item.trainNumber || item.busType || item.vesselName || "";
+
+  return (
+    <div className="ts-card">
+      <div className="ts-card__left">
+        <span className="ts-card__icon">{icons[item.type]}</span>
+        <div className="ts-card__provider">
+          <p className="ts-card__name">{providerName}</p>
+          {providerSub && <p className="ts-card__sub">{providerSub}</p>}
+        </div>
+      </div>
+
+      <div className="ts-card__timing">
+        <span className="ts-card__time">{item.departure}</span>
+        <div className="ts-card__line">
+          <span className="ts-card__dur">{item.duration}</span>
+          <div className="ts-card__dash" />
+        </div>
+        <span className="ts-card__time">{item.arrival}</span>
+      </div>
+
+      <div className="ts-card__class">
+        <p className="ts-card__class-name">{item.class}</p>
+        {item.seatsLeft <= 10 && (
+          <p className="ts-card__seats">{item.seatsLeft} left</p>
+        )}
+      </div>
+
+      <div className="ts-card__right">
+        <p className="ts-card__price">₹{item.price?.toLocaleString("en-IN")}</p>
+        <p className="ts-card__per">per person</p>
+        <button className="ts-card__btn" onClick={() => onSelect(item)}>
+          Select
+        </button>
+      </div>
     </div>
   );
 }

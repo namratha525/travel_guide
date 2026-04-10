@@ -41,7 +41,7 @@ export default function Explore() {
         </div>
       </div>
 
-      {/* REGION FILTER */}
+      {/* REGION FILTER
       <div className="region-tabs">
         {regions.map((r) => (
           <button
@@ -52,26 +52,26 @@ export default function Explore() {
             {r}
           </button>
         ))}
-      </div>
+      </div> */}
 
       {/* PLACES */}
-      <div className="places-grid">
+      {/* <div className="places-grid">
         {filteredPlaces.map((place) => (
           <div key={place.id} className="place-card">
             <img src={place.image} alt={place.name} />
             <h3>{place.name}</h3>
             <span>{place.region}</span>
           </div>
-        ))}
-      </div>
+        ))} */}
+      {/* </div> */}
 
       {/* POPULAR PACKAGES */}
-      <div className="packages-section">
+      {/* <div className="packages-section">
         <h2>Popular Packages</h2>
         <button onClick={() => navigate("/packages")}>
           Explore All Packages
         </button>
-      </div>
+      </div> */}
 
     </div>
   );

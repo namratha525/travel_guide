@@ -437,3 +437,31 @@
     grid-template-columns: repeat(5, 1fr);
   }
 }
+/* Add these styles to the END of your existing Destination.css */
+
+/* Make destination cards clickable */
+.dst-card--clickable {
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.dst-card--clickable:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.18);
+}
+.dst-card--clickable:hover .dst-card__overlay {
+  background: rgba(0,0,0,0.35);
+}
+
+/* "View Details" CTA on destination cards */
+.dst-card__cta--dest {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #00bcd4;
+  background: rgba(0,188,212,0.12);
+  padding: 5px 12px;
+  border-radius: 20px;
+}

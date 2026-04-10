@@ -1,7 +1,8 @@
+// backend/routes/flights.js
 import express from "express";
 const router = express.Router();
 
-// ── Airport data ────────────────────────────────────────────────────────────
+// ── Airport data ──────────────────────────────────────────────────────────────
 const AIRPORTS = {
   DEL: { name: "Indira Gandhi International", city: "Delhi",     code: "DEL" },
   BOM: { name: "Chhatrapati Shivaji Maharaj", city: "Mumbai",    code: "BOM" },
@@ -23,7 +24,6 @@ const AIRPORTS = {
   IXZ: { name: "Veer Savarkar International",  city: "Port Blair", code: "IXZ" },
 };
 
-// City → airport code mapping (also handles partial names)
 const CITY_TO_CODE = {
   delhi: "DEL", "new delhi": "DEL",
   mumbai: "BOM", bombay: "BOM",
@@ -45,7 +45,7 @@ const CITY_TO_CODE = {
   "port blair": "IXZ", andaman: "IXZ",
 };
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function resolveCode(cityInput) {
   if (!cityInput) return null;
   const lower = cityInput.toLowerCase().trim();
@@ -63,17 +63,16 @@ function randomBetween(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-// ── Flight generation ────────────────────────────────────────────────────────
+// ── Flights ───────────────────────────────────────────────────────────────────
 const AIRLINES = [
-  { name: "IndiGo",    code: "6E", logo: "✈️", multiplier: 1.0 },
-  { name: "Air India", code: "AI", logo: "✈️", multiplier: 1.4 },
-  { name: "SpiceJet",  code: "SG", logo: "✈️", multiplier: 0.9 },
-  { name: "Vistara",   code: "UK", logo: "✈️", multiplier: 1.3 },
-  { name: "GoFirst",   code: "G8", logo: "✈️", multiplier: 0.85 },
-  { name: "AirAsia India", code: "I5", logo: "✈️", multiplier: 0.95 },
+  { name: "IndiGo",        code: "6E", multiplier: 1.0  },
+  { name: "Air India",     code: "AI", multiplier: 1.4  },
+  { name: "SpiceJet",      code: "SG", multiplier: 0.9  },
+  { name: "Vistara",       code: "UK", multiplier: 1.3  },
+  { name: "GoFirst",       code: "G8", multiplier: 0.85 },
+  { name: "AirAsia India", code: "I5", multiplier: 0.95 },
 ];
 
-// Base prices by distance tier (approximate)
 function basePriceForRoute(origin, dest) {
   const distanceMap = {
     "DEL-BOM": 5500, "DEL-MAA": 6200, "DEL-BLR": 5800, "DEL-CCU": 4800,
@@ -94,13 +93,13 @@ function basePriceForRoute(origin, dest) {
 
 function generateFlights(originCode, destCode, dateStr) {
   const base = basePriceForRoute(originCode, destCode);
-  const departureTimes = ["05:30", "07:15", "09:45", "11:20", "13:05", "15:40", "17:25", "19:10", "21:00"];
+  const departureTimes = ["05:30","07:15","09:45","11:20","13:05","15:40","17:25","19:10","21:00"];
   const durationMins = randomBetween(75, 180);
 
   return AIRLINES.slice(0, randomBetween(3, 5)).map((airline, i) => {
     const depTime = departureTimes[i % departureTimes.length];
     const arrTime = addMinutes(depTime, durationMins + randomBetween(-10, 20));
-    const price = Math.round(base * airline.multiplier * (0.9 + Math.random() * 0.3));
+    const price   = Math.round(base * airline.multiplier * (0.9 + Math.random() * 0.3));
     const flightNum = `${airline.code}${randomBetween(100, 999)}`;
 
     return {
@@ -125,7 +124,7 @@ function generateFlights(originCode, destCode, dateStr) {
   }).sort((a, b) => a.price - b.price);
 }
 
-// ── Train generation ─────────────────────────────────────────────────────────
+// ── Trains ────────────────────────────────────────────────────────────────────
 const TRAIN_ROUTES = {
   "DEL-JAI": [
     { name: "Shatabdi Express", number: "12015", dep: "06:00", arr: "10:25", dur: "4h 25m" },
@@ -181,10 +180,10 @@ const TRAIN_ROUTES = {
 };
 
 const TRAIN_CLASSES = [
-  { class: "Sleeper (SL)",    multiplier: 1.0 },
-  { class: "3rd AC (3A)",     multiplier: 2.6 },
-  { class: "2nd AC (2A)",     multiplier: 3.8 },
-  { class: "1st AC (1A)",     multiplier: 6.0 },
+  { class: "Sleeper (SL)", multiplier: 1.0 },
+  { class: "3rd AC (3A)", multiplier: 2.6  },
+  { class: "2nd AC (2A)", multiplier: 3.8  },
+  { class: "1st AC (1A)", multiplier: 6.0  },
 ];
 
 const BASE_TRAIN_PRICES = {
@@ -197,9 +196,8 @@ const BASE_TRAIN_PRICES = {
 function generateTrains(originCode, destCode) {
   const key1 = `${originCode}-${destCode}`;
   const key2 = `${destCode}-${originCode}`;
-  const trainList = TRAIN_ROUTES[key1] || TRAIN_ROUTES[key2];
-  const basePrice = BASE_TRAIN_PRICES[key1] || BASE_TRAIN_PRICES[key2] || 400;
-
+  const trainList  = TRAIN_ROUTES[key1] || TRAIN_ROUTES[key2];
+  const basePrice  = BASE_TRAIN_PRICES[key1] || BASE_TRAIN_PRICES[key2] || 400;
   if (!trainList) return [];
 
   return trainList.flatMap((train) =>
@@ -223,7 +221,171 @@ function generateTrains(originCode, destCode) {
   );
 }
 
-// ── Routes ───────────────────────────────────────────────────────────────────
+// ── Buses ─────────────────────────────────────────────────────────────────────
+const BUS_ROUTES = {
+  "DEL-JAI": [
+    { operator: "RSRTC Volvo",     dep: "06:00", arr: "11:00", dur: "5h 00m", type: "AC Volvo Sleeper"   },
+    { operator: "Orange Travels",  dep: "08:30", arr: "14:00", dur: "5h 30m", type: "AC Seater"          },
+    { operator: "RSRTC Express",   dep: "22:00", arr: "03:30", dur: "5h 30m", type: "Non-AC Sleeper"     },
+  ],
+  "DEL-IXC": [
+    { operator: "HRTC Volvo",      dep: "07:00", arr: "14:00", dur: "7h 00m", type: "AC Volvo Semi-Sleeper" },
+    { operator: "PEPSU Express",   dep: "20:00", arr: "03:30", dur: "7h 30m", type: "Non-AC Sleeper"     },
+  ],
+  "DEL-VNS": [
+    { operator: "UP SRTC Volvo",   dep: "18:00", arr: "06:00", dur: "12h 00m", type: "AC Volvo Sleeper"  },
+    { operator: "Shrinath Travels",dep: "19:30", arr: "08:00", dur: "12h 30m", type: "AC Sleeper"        },
+  ],
+  "BOM-GOI": [
+    { operator: "KTC Kadamba",     dep: "07:00", arr: "15:30", dur: "8h 30m", type: "AC Volvo Seater"    },
+    { operator: "Paulo Travels",   dep: "22:00", arr: "06:30", dur: "8h 30m", type: "AC Sleeper"         },
+    { operator: "Goa KTCL",        dep: "09:00", arr: "18:00", dur: "9h 00m", type: "Non-AC Seater"      },
+  ],
+  "BOM-PNQ": [
+    { operator: "MSRTC Shivneri",  dep: "06:00", arr: "09:30", dur: "3h 30m", type: "AC Luxury"          },
+    { operator: "MSRTC Asiad",     dep: "08:00", arr: "11:30", dur: "3h 30m", type: "Semi-Luxury"        },
+    { operator: "IntrCity SmartBus",dep: "07:30", arr: "11:00", dur: "3h 30m", type: "AC Seater"         },
+  ],
+  "MAA-BLR": [
+    { operator: "KSRTC Airavat",   dep: "06:00", arr: "12:00", dur: "6h 00m", type: "AC Volvo Sleeper"   },
+    { operator: "VRL Travels",     dep: "08:00", arr: "14:30", dur: "6h 30m", type: "AC Seater"          },
+    { operator: "SRM Travels",     dep: "22:00", arr: "04:30", dur: "6h 30m", type: "AC Sleeper"         },
+  ],
+  "BLR-HYD": [
+    { operator: "APSRTC Garuda",   dep: "07:00", arr: "16:00", dur: "9h 00m", type: "AC Volvo Seater"    },
+    { operator: "Orange Travels",  dep: "21:00", arr: "06:30", dur: "9h 30m", type: "AC Sleeper"         },
+  ],
+  "CCU-IXB": [
+    { operator: "NBSTC Rocket",    dep: "06:00", arr: "13:00", dur: "7h 00m", type: "AC Seater"          },
+    { operator: "North Bengal ST", dep: "22:00", arr: "05:30", dur: "7h 30m", type: "Non-AC Sleeper"     },
+  ],
+};
+
+const BUS_CLASS_PRICES = {
+  "AC Volvo Sleeper":     { base: 800,  multiplier: 1.0 },
+  "AC Volvo Seater":      { base: 650,  multiplier: 1.0 },
+  "AC Seater":            { base: 550,  multiplier: 1.0 },
+  "AC Sleeper":           { base: 700,  multiplier: 1.0 },
+  "Non-AC Sleeper":       { base: 350,  multiplier: 1.0 },
+  "Non-AC Seater":        { base: 280,  multiplier: 1.0 },
+  "Semi-Luxury":          { base: 500,  multiplier: 1.0 },
+  "AC Luxury":            { base: 750,  multiplier: 1.0 },
+  "AC Volvo Semi-Sleeper":{ base: 720,  multiplier: 1.0 },
+};
+
+function generateBuses(originCode, destCode) {
+  const key1 = `${originCode}-${destCode}`;
+  const key2 = `${destCode}-${originCode}`;
+  const busList = BUS_ROUTES[key1] || BUS_ROUTES[key2];
+  if (!busList) return [];
+
+  return busList.map((bus, i) => {
+    const priceInfo = BUS_CLASS_PRICES[bus.type] || { base: 500, multiplier: 1 };
+    const price = Math.round(priceInfo.base * (0.9 + Math.random() * 0.2));
+
+    return {
+      id: `BUS-${originCode}-${destCode}-${i}`,
+      type: "bus",
+      busOperator: bus.operator,
+      busType: bus.type,
+      origin: originCode,
+      destination: destCode,
+      originCity: AIRPORTS[originCode]?.city || originCode,
+      destinationCity: AIRPORTS[destCode]?.city || destCode,
+      departure: bus.dep,
+      arrival: bus.arr,
+      duration: bus.dur,
+      class: bus.type,
+      price,
+      seatsLeft: randomBetween(2, 40),
+      amenities: bus.type.includes("AC") ? ["AC", "WiFi", "Charging Point"] : ["Fan", "Water Bottle"],
+    };
+  });
+}
+
+// ── Ferry ─────────────────────────────────────────────────────────────────────
+const FERRY_ROUTES = {
+  // Port Blair / Andaman
+  "CCU-IXZ": [
+    { operator: "Shipping Corp of India", vessel: "MV Andaman Sindhu", dep: "08:00", arr: "08:00+3", dur: "3 days", route: "Kolkata → Port Blair" },
+    { operator: "SCI Ferry",              vessel: "MV Nicobar",        dep: "12:00", arr: "12:00+3", dur: "3 days", route: "Kolkata → Port Blair" },
+  ],
+  "MAA-IXZ": [
+    { operator: "Shipping Corp of India", vessel: "MV Akbar",          dep: "09:00", arr: "09:00+2", dur: "60 hrs", route: "Chennai → Port Blair" },
+    { operator: "SCI Ferry",              vessel: "MV Harshavardhana",  dep: "14:00", arr: "14:00+2", dur: "60 hrs", route: "Chennai → Port Blair" },
+  ],
+  // Kerala backwaters
+  "COK-COK": [
+    { operator: "KTDC Ferry",             vessel: "Alleppey Cruiser",   dep: "07:30", arr: "13:30",   dur: "6h 00m", route: "Kochi → Alleppey" },
+    { operator: "DTPC Backwater",         vessel: "Punalur Boat",       dep: "10:00", arr: "16:30",   dur: "6h 30m", route: "Kochi → Alleppey" },
+  ],
+  // Goa ferries
+  "GOI-GOI": [
+    { operator: "Goa River Ferry",        vessel: "Panaji Ferry",       dep: "07:00", arr: "07:20",   dur: "20m",    route: "Panaji → Betim" },
+    { operator: "Goa Catamarans",         vessel: "Sea Queen",          dep: "09:00", arr: "09:45",   dur: "45m",    route: "Panaji → Chorao" },
+  ],
+  // Mumbai to Goa
+  "BOM-GOI": [
+    { operator: "Angriya Cruise",         vessel: "MV Angriya",         dep: "16:00", arr: "07:00+1", dur: "15 hrs", route: "Mumbai → Goa" },
+  ],
+  // Andaman Island hopping
+  "IXZ-IXZ": [
+    { operator: "Govt Ferry Service",     vessel: "MV Swaraj Dweep",    dep: "06:00", arr: "08:30",   dur: "2h 30m", route: "Port Blair → Havelock" },
+    { operator: "Makruzz Speedboat",      vessel: "Makruzz Express",    dep: "08:00", arr: "09:30",   dur: "1h 30m", route: "Port Blair → Havelock" },
+    { operator: "Green Ocean",            vessel: "Green Ocean I",      dep: "07:00", arr: "09:00",   dur: "2h 00m", route: "Port Blair → Neil Island" },
+  ],
+};
+
+const FERRY_CLASSES = [
+  { class: "Economy Deck",   multiplier: 1.0 },
+  { class: "Bunk Class",     multiplier: 1.6 },
+  { class: "Cabin (2-berth)",multiplier: 3.2 },
+];
+
+const BASE_FERRY_PRICES = {
+  "CCU-IXZ": 2800, "MAA-IXZ": 2400,
+  "COK-COK": 350,  "GOI-GOI": 50,
+  "BOM-GOI": 3200, "IXZ-IXZ": 500,
+};
+
+function generateFerries(originCode, destCode) {
+  const key1 = `${originCode}-${destCode}`;
+  const key2 = `${destCode}-${originCode}`;
+  // Also check same-code routes (island hopping)
+  const sameCode = `${originCode}-${originCode}`;
+
+  const ferryList  = FERRY_ROUTES[key1] || FERRY_ROUTES[key2] || FERRY_ROUTES[sameCode];
+  const basePrice  = BASE_FERRY_PRICES[key1] || BASE_FERRY_PRICES[key2] || BASE_FERRY_PRICES[sameCode] || 800;
+
+  if (!ferryList) return [];
+
+  // For short routes (< 2hr), only one class
+  const isShortRoute = ferryList[0]?.dur && (ferryList[0].dur.includes("20m") || ferryList[0].dur.includes("45m") || ferryList[0].dur.includes("1h"));
+  const classes = isShortRoute ? [{ class: "Standard", multiplier: 1.0 }] : FERRY_CLASSES;
+
+  return ferryList.flatMap((ferry, fi) =>
+    classes.map((cls, ci) => ({
+      id: `FRY-${originCode}-${fi}-${ci}`,
+      type: "ferry",
+      ferryOperator: ferry.operator,
+      vesselName: ferry.vessel,
+      route: ferry.route,
+      origin: originCode,
+      destination: destCode,
+      originCity: AIRPORTS[originCode]?.city || originCode,
+      destinationCity: AIRPORTS[destCode]?.city || destCode,
+      departure: ferry.dep,
+      arrival: ferry.arr,
+      duration: ferry.dur,
+      class: cls.class,
+      price: Math.round(basePrice * cls.multiplier * (0.9 + Math.random() * 0.2)),
+      seatsLeft: randomBetween(5, 80),
+      amenities: ["Life Jacket", "Cafeteria", "Restroom"],
+    }))
+  );
+}
+
+// ── Routes ────────────────────────────────────────────────────────────────────
 
 // GET /api/flights/airports?q=del
 router.get("/airports", (req, res) => {
@@ -250,19 +412,22 @@ router.get("/search", (req, res) => {
 
   if (!originCode) return res.status(404).json({ message: `Airport not found for: ${origin}` });
   if (!destCode)   return res.status(404).json({ message: `Airport not found for: ${destination}` });
-  if (originCode === destCode) return res.status(400).json({ message: "Origin and destination cannot be the same" });
 
   const dateStr = date || new Date().toISOString().split("T")[0];
 
   const flights = generateFlights(originCode, destCode, dateStr);
   const trains  = generateTrains(originCode, destCode);
+  const buses   = generateBuses(originCode, destCode);
+  const ferries = generateFerries(originCode, destCode);
 
   res.json({
     origin:      { code: originCode, ...AIRPORTS[originCode] },
-    destination: { code: destCode,   ...AIRPORTS[destCode] },
+    destination: { code: destCode,   ...AIRPORTS[destCode]   },
     date:        dateStr,
     flights,
     trains,
+    buses,
+    ferries,
   });
 });
 
